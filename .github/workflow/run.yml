@@ -1,0 +1,41 @@
+name: MS_Job_Bot
+
+on:
+  schedule:
+    # 这里的 cron 是格林威治时间，'0 */4 * * *' 代表每 4 小时跑一次
+    - cron: '0 */4 * * *'
+  workflow_dispatch: # 这个很重要！它让你能在 GitHub 页面上手动点按钮立刻运行
+
+jobs:
+  check_jobs:
+    runs-on: ubuntu-latest
+    
+    # 给机器人修改文件的权限，用来记录哪些岗位你已经看过了
+    permissions:
+      contents: write
+      
+    steps:
+      - name: 检查代码仓库
+        uses: actions/checkout@v4
+
+      - name: 安装 Python 环境
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: 安装必要的工具包
+        run: pip install requests
+
+      - name: 运行监控脚本
+        env:
+          # 这一行会去读取你之前在 Settings 里存的飞书链接
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+        run: python monitor.py
+
+      - name: 自动保存记录
+        run: |
+          git config --global user.name "GitHub Action Bot"
+          git config --global user.email "actions@github.com"
+          git add visited_jobs.txt
+          # 只有当文件有变化时才提交，防止报错
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update visited jobs" && git push)
